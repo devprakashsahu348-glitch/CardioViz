@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CardioViz — Cardiovascular Risk Prediction & 3D Visualization</title>
+<style>
+:root{--bg:#f3f6fb;--sf:#fff;--tx:#14203a;--mu:#5b6b88;--bd:#d5deec;--ac:#2563eb;--up:#dc2626;--dn:#2563eb;--wa:#fff4d6;--wt:#7a5200;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a0d14;--sf:#111827;--tx:#e8edf5;--mu:#8a99b3;--bd:#1e2d45;--ac:#60a5fa;--up:#f87171;--dn:#60a5fa;--wa:#3a2a05;--wt:#fcd34d}}
+:root[data-theme="dark"]{--bg:#0a0d14;--sf:#111827;--tx:#e8edf5;--mu:#8a99b3;--bd:#1e2d45;--ac:#60a5fa;--up:#f87171;--dn:#60a5fa;--wa:#3a2a05;--wt:#fcd34d}
+*,*::before,*::after{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;align-items:center;padding:.8rem 1.2rem;border-bottom:1px solid var(--bd)}
+header h1{margin:0;font-size:1.3rem}header span{color:var(--mu);font-size:.85rem}
+.dis{background:var(--wa);color:var(--wt);padding:.55rem 1.2rem;font-size:.85rem;border-bottom:1px solid var(--bd)}
+.g{display:grid;grid-template-columns:290px minmax(0,1fr) 380px;gap:1rem;padding:1rem 1.2rem;align-items:start}
+@media(max-width:1100px){.g{grid-template-columns:minmax(0,1fr)}}
+.c{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:1rem;min-width:0}
+h2{font-size:1rem;margin:0 0 .7rem}
+.f{display:grid;grid-template-columns:1fr auto;gap:.1rem .6rem;margin-bottom:.55rem;font-size:.85rem}
+.f input[type=range]{grid-column:1/3;width:100%;accent-color:var(--ac)}
+.f b{font-weight:600}.k{display:flex;justify-content:space-between;align-items:center;margin-bottom:.55rem;font-size:.85rem}
+button,.up{font:inherit;font-size:.85rem;padding:.4rem .7rem;border:1px solid var(--bd);border-radius:8px;background:var(--sf);color:var(--tx);cursor:pointer}
+button:hover{border-color:var(--ac)}button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.r{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
+#cv{position:relative;height:min(62vh,560px);min-height:360px;border-radius:8px;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--ac) 14%,transparent),transparent 70%);touch-action:none;cursor:grab;overflow:hidden}
+#cv canvas{display:block;width:100%;height:100%}
+.hint{color:var(--mu);font-size:.8rem;margin:.5rem 0 0}.lg{height:8px;border-radius:4px;background:linear-gradient(90deg,hsl(120,85%,50%),hsl(60,85%,50%),hsl(0,85%,50%));margin-top:.6rem}
+.lgl{display:flex;justify-content:space-between;font-size:.75rem;color:var(--mu)}
+.pc4{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1rem}
+.pc{text-align:left;padding:.55rem .65rem;display:grid;gap:.15rem}.pc.on{border-color:var(--ac);box-shadow:0 0 0 2px var(--ac) inset}
+.pc b{font-size:1.5rem;line-height:1.1}.pc i{display:block;height:5px;border-radius:3px}.pc small{color:var(--mu)}
+.ex{display:grid;grid-template-columns:minmax(0,1fr) 120px 46px;gap:.5rem;align-items:center;font-size:.8rem;margin-bottom:.35rem}
+.bar{position:relative;height:10px;background:color-mix(in srgb,var(--mu) 18%,transparent);border-radius:3px}.bar u{position:absolute;top:0;height:100%;border-radius:2px}.bar::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--mu)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}td,th{padding:.25rem .3rem;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}
+.nt{color:var(--mu);font-size:.78rem;margin:.5rem 0 0}.up input{display:none}
+</style></head><body>
+<header><h1>CardioViz</h1><span>Coronary artery disease and vessel-level stenosis risk, mapped onto a 3D heart</span><span id="src"></span></header>
+<div class="dis" role="note"><b>Clinical safety notice:</b> predictions are for decision support and education only. They are not a diagnosis and do not replace formal diagnostic imaging or a clinician's judgement.</div>
+<main class="g">
+<section class="c" aria-label="Patient inputs"><h2>Patient data</h2><div id="form"></div>
+<div class="r"><button id="lo">Load low-risk example</button><button id="hi">Load high-risk example</button></div></section>
+<section class="c" aria-label="3D viewer"><h2>3D coronary map</h2><div id="cv"></div>
+<p class="hint">Drag to rotate, scroll or pinch to zoom, click a vessel or the heart to inspect it.</p>
+<div class="lg"></div><div class="lgl"><span>Low stenosis probability</span><span>High</span></div>
+<div class="r"><button id="rs">Reset view</button></div></section>
+<section class="c" aria-label="Clinical dashboard"><h2>Prediction</h2><div class="pc4" id="pc"></div>
+<h2 id="eh">Why this prediction</h2><div id="ex"></div><p class="nt" id="bs"></p>
+<h2 style="margin-top:1rem">Model quality (held-out 20%)</h2><table id="mt"></table>
+<div class="r"><label class="up">Retrain on Z-Alizadeh Sani CSV<input type="file" id="fl" accept=".csv"></label></div>
+<p class="nt" id="msg"></p></section></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------- features: [key,label,min,max,step,default,type] ----------
+const F=[['age','Age (years)',30,90,1,58],['sex','Male',0,1,1,1,'b'],['bp','Blood pressure (mmHg)',90,200,1,130],['pr','Pulse rate (bpm)',50,110,1,75],['cp','Typical chest pain',0,1,1,0,'b'],['dm','Diabetes',0,1,1,0,'b'],['htn','Hypertension',0,1,1,0,'b'],['ldl','LDL (mg/dL)',50,250,1,110],['hdl','HDL (mg/dL)',20,90,1,45],['tg','Triglycerides (mg/dL)',50,500,5,150],['fbs','Fasting glucose (mg/dL)',70,300,1,100],['st','ST elevation',0,1,1,0,'b'],['ti','T inversion',0,1,1,0,'b'],['ef','Ejection fraction (%)',20,65,1,55],['rwma','Wall motion abnormality region (0-4)',0,4,1,0],['bmi','BMI',16,40,.5,27]];
+const AL={age:['age'],sex:['sex'],bp:['bp'],pr:['pr'],cp:['typicalchestpain'],dm:['dm'],htn:['htn'],ldl:['ldl'],hdl:['hdl'],tg:['tg'],fbs:['fbs'],st:['stelevation'],ti:['tinversion'],ef:['eftte','ef'],rwma:['regionrwma','rwma'],bmi:['bmi']};
+const TA={0:['cath'],1:['lad'],2:['lcx'],3:['rca']},TK=['cad','lad','lcx','rca'],TL=['Overall CAD','LAD','LCX','RCA'];
+const $=id=>document.getElementById(id),sg=z=>1/(1+Math.exp(-z)),cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+const hue=p=>`hsl(${(1-p)*120},85%,50%)`;
+// ---------- demo cohort (used until a real CSV is loaded) ----------
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function synth(n){const r=rng(7),g=()=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r()),X=[],Y=[];
+for(let k=0;k<n;k++){const dm=r()<.3?1:0,x=[58+10*g(),r()<.6?1:0,130+18*g(),75+11*g(),r()<.35?1:0,dm,r()<.55?1:0,110+35*g(),45+10*g(),150+70*g(),100+35*g()+dm*25,r()<.12?1:0,r()<.2?1:0,55+7*g(),r()<.3?Math.ceil(r()*4):0,27+4*g()];
+x.forEach((v,i)=>{x[i]=cl(F[i][6]?v:v,F[i][2],F[i][3])});
+const z0=-4.6+.055*x[0]+.5*x[1]+1.3*x[4]+.7*x[5]+.5*x[6]+.007*x[7]-.02*x[8]+.004*x[10]+.9*x[11]+.7*x[12]-.04*(x[13]-55)+.4*(x[14]>0)+.02*(x[15]-27)+.01*(x[2]-130),sh=.8*g();
+const v=[z0-.3+.5*x[11],z0-1.3+.3*x[5],z0-1+.3*x[12]].map(z=>r()<sg(z+sh+.5*g())?1:0);
+X.push(x);Y.push([v.some(a=>a)||r()<sg(z0+sh)?1:0,...v])}return{X,Y}}
+// ---------- logistic regression + metrics ----------
+function auc(s,y){const o=s.map((v,i)=>[v,y[i]]).sort((a,b)=>a[0]-b[0]);let rs=0,np=0;o.forEach((a,i)=>{if(a[1]){rs+=i+1;np++}});const nn=o.length-np;return np&&nn?(rs-np*(np+1)/2)/(np*nn):NaN}
+function fit(Z,y){const d=Z[0].length,n=Z.length;let w=Array(d).fill(0),b=0;for(let it=0;it<600;it++){const gw=Array(d).fill(0);let gb=0;for(let i=0;i<n;i++){let z=b;for(let j=0;j<d;j++)z+=w[j]*Z[i][j];const e=sg(z)-y[i];gb+=e;for(let j=0;j<d;j++)gw[j]+=e*Z[i][j]}b-=.4*gb/n;for(let j=0;j<d;j++)w[j]-=.4*(gw[j]/n+.01*w[j])}return{w,b}}
+function train(X,Y){const n=X.length,d=F.length,mu=[],sd=[];for(let j=0;j<d;j++){const c=X.map(r=>r[j]),m=c.reduce((a,b)=>a+b,0)/n;mu.push(m);sd.push(Math.sqrt(c.reduce((a,b)=>a+(b-m)**2,0)/n)||1)}
+const Z=X.map(r=>r.map((v,j)=>(v-mu[j])/sd[j])),r=rng(3),ix=[...Array(n).keys()].sort(()=>r()-.5),nt=Math.round(n*.2),te=ix.slice(0,nt),tr=ix.slice(nt);
+const m=TK.map((_,t)=>{const f=fit(tr.map(i=>Z[i]),tr.map(i=>Y[i][t])),sc=te.map(i=>sg(f.b+f.w.reduce((a,w,j)=>a+w*Z[i][j],0))),y=te.map(i=>Y[i][t]);
+let tp=0,fp=0,fn=0,tn=0;sc.forEach((s,i)=>{const p=s>=.5;if(p&&y[i])tp++;else if(p)fp++;else if(y[i])fn++;else tn++});
+const pr=tp/(tp+fp)||0,rc=tp/(tp+fn)||0;f.met=[(tp+tn)/te.length,pr,rc,2*pr*rc/(pr+rc)||0,auc(sc,y)];return f});return{mu,sd,m,n}}
+// ---------- csv ----------
+function parse(t){const L=t.trim().split(/\r?\n/).map(l=>l.split(',').map(s=>s.trim().replace(/^"|"$/g,''))),H=L[0].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,'')),
+num=v=>{const s=String(v).toLowerCase();if(s=='male'||/^(cad|stenotic|yes|y|positive)$/.test(s))return 1;if(/^(fmale|female|normal|n|no|negative)$/.test(s))return 0;return parseFloat(s)},
+col=a=>H.findIndex(h=>a.includes(h)),fc=F.map(f=>col(AL[f[0]])),tc=TK.map((_,t)=>col(TA[t]));
+if(tc.some(c=>c<0))throw Error('Missing target columns. Need Cath, LAD, LCX and RCA.');
+const X=[],Y=[];L.slice(1).forEach(r=>{if(r.length<H.length)return;X.push(F.map((f,j)=>{const v=fc[j]<0?NaN:num(r[fc[j]]);return isNaN(v)?f[5]:v}));Y.push(tc.map(c=>num(r[c])==1?1:0))});
+if(X.length<30)throw Error('Too few rows to train.');return{X,Y,miss:F.filter((_,j)=>fc[j]<0).map(f=>f[1])}}
+// ---------- state + form ----------
+let M,sel=0,P=[0,0,0,0];
+const form=$('form'),inp={};
+F.forEach(f=>{const d=document.createElement('div');if(f[6]){d.className='k';d.innerHTML=`<label for="i_${f[0]}">${f[1]}</label><input type="checkbox" id="i_${f[0]}">`;inp[f[0]]=d.querySelector('input');inp[f[0]].checked=!!f[5]}
+else{d.className='f';d.innerHTML=`<label for="i_${f[0]}">${f[1]}</label><b id="o_${f[0]}">${f[5]}</b><input type="range" id="i_${f[0]}" min="${f[2]}" max="${f[3]}" step="${f[4]}" value="${f[5]}">`;inp[f[0]]=d.querySelector('input')}
+inp[f[0]].addEventListener('input',run);form.appendChild(d)});
+const getX=()=>F.map(f=>f[6]?+inp[f[0]].checked:+inp[f[0]].value);
+function setX(a){F.forEach((f,i)=>{if(f[6])inp[f[0]].checked=!!a[i];else inp[f[0]].value=a[i]});run()}
+$('lo').onclick=()=>setX([40,0,115,70,0,0,0,90,60,100,90,0,0,60,0,23]);
+$('hi').onclick=()=>setX([66,1,150,82,1,1,1,160,35,220,160,1,1,40,2,30]);
+// ---------- dashboard ----------
+function run(){const x=getX();F.forEach((f,i)=>{if(!f[6])$('o_'+f[0]).textContent=x[i]});
+const z=x.map((v,j)=>(v-M.mu[j])/M.sd[j]);P=M.m.map(m=>sg(m.b+m.w.reduce((a,w,j)=>a+w*z[j],0)));
+$('pc').innerHTML=TL.map((l,t)=>`<button class="pc ${t==sel?'on':''}" data-t="${t}"><span>${l}</span><b>${(P[t]*100).toFixed(0)}%</b><i style="width:${P[t]*100}%;background:${hue(P[t])}"></i><small>${t?'Stenosis':'Disease'} ${P[t]>=.5?'likely':'unlikely'} · ${P[t]<.3?'low':P[t]<.6?'moderate':'high'} risk</small></button>`).join('');
+document.querySelectorAll('.pc').forEach(b=>b.onclick=()=>pick(+b.dataset.t));
+const m=M.m[sel],ph=m.w.map((w,j)=>w*z[j]),o=ph.map((v,j)=>j).sort((a,b)=>Math.abs(ph[b])-Math.abs(ph[a])).slice(0,8),mx=Math.max(...o.map(j=>Math.abs(ph[j]))),tot=ph.reduce((a,v)=>a+Math.abs(v),0)||1;
+$('eh').textContent='Why '+TL[sel]+' scored '+(P[sel]*100).toFixed(0)+'%';
+$('ex').innerHTML=o.map(j=>{const f=F[j],v=f[6]?(j==1?(x[j]?'Male':'Female'):x[j]?'Yes':'No'):x[j],w=Math.abs(ph[j])/mx*50;return`<div class="ex"><span>${f[1].replace(/ \(.*/,'')}: <b>${v}</b></span><div class="bar"><u style="${ph[j]>0?`left:50%;background:var(--up)`:`right:50%;background:var(--dn)`};width:${w}%"></u></div><span>${(ph[j]>0?'+':'−')+(Math.abs(ph[j])/tot*100).toFixed(0)}%</span></div>`}).join('');
+$('bs').textContent=`Red bars raise risk, blue bars lower it (exact SHAP values for this linear model; percentages are shares of total attribution). Average patient in the training cohort: ${(sg(m.b)*100).toFixed(0)}%.`;
+paint()}
+function pick(t){sel=t;run()}
+function table(){$('mt').innerHTML='<tr><th>Target</th><th>Acc</th><th>Prec</th><th>Recall</th><th>F1</th><th>AUC</th></tr>'+M.m.map((m,t)=>`<tr><td>${TL[t]}</td>${m.met.map(v=>`<td>${isNaN(v)?'–':v.toFixed(2)}</td>`).join('')}</tr>`).join('')}
+function load(d,name,note){M=train(d.X,d.Y);$('src').textContent=name+' · '+M.n+' patients';$('msg').textContent=note;table();run()}
+$('fl').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=parse(t);load(d,f.name,'Retrained in your browser. Cath, LAD, LCX and RCA are used only as targets, never as inputs.'+(d.miss.length?' Columns not found, defaulted: '+d.miss.join(', ')+'.':''))}catch(err){$('msg').textContent=err.message}})};
+// ---------- 3D ----------
+let paint=()=>{};
+try{const el=$('cv'),R=new THREE.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,1.5));el.appendChild(R.domElement);
+const S=new THREE.Scene(),C=new THREE.PerspectiveCamera(40,1,.1,50),V=(a,b,c)=>new THREE.Vector3(a,b,c);C.position.z=3.4;
+S.add(new THREE.AmbientLight(0xffffff,.75));const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(2,3,4);S.add(dl);
+const piv=new THREE.Group(),root=new THREE.Group();S.add(piv);piv.add(root);root.position.set(-.3,-.5,-.3);
+const gl=(geo,col,op,wire)=>{const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,side:2,depthWrite:false,wireframe:!!wire}));return m};
+const tg=new THREE.CylinderGeometry(1,1,4,28,8,true);[0,1].forEach(w=>{const m=gl(tg,0x7f9cc8,w?.18:.07,w);m.scale.set(1.6,1,.9);root.add(m)});
+[-1,1].forEach(s=>{const m=gl(new THREE.SphereGeometry(.7,16,12),0x8aa6d0,.09);m.scale.set(.8,1.4,.7);m.position.set(s*.85,.6,0);root.add(m)});
+const H=new THREE.Group();H.position.set(.3,.5,.3);H.rotation.z=-.35;root.add(H);
+const sh=(v,r)=>{v.setLength(r);const k=1-.35*Math.max(0,-v.y/r);v.x*=k*.95;v.z*=k*.9;v.y*=1.1;return v};
+const hg=new THREE.SphereGeometry(.62,32,24),pa=hg.attributes.position;for(let i=0;i<pa.count;i++){const v=sh(V(pa.getX(i),pa.getY(i),pa.getZ(i)),.62);pa.setXYZ(i,v.x,v.y,v.z)}hg.computeVertexNormals();
+const heart=new THREE.Mesh(hg,new THREE.MeshStandardMaterial({color:0xa94b4b,roughness:.6,emissive:0xff2020,emissiveIntensity:0}));heart.userData.t=0;H.add(heart);
+const ao=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.6,14),new THREE.MeshStandardMaterial({color:0xd8cfc0,roughness:.5}));ao.position.set(-.04,.78,-.05);H.add(ao);
+const paths=[[[0,.6,.3],[.12,.3,.55],[.2,0,.62],[.25,-.3,.52],[.2,-.55,.3]],[[.05,.55,.3],[.35,.4,.35],[.58,.15,.3],[.62,-.1,0],[.5,-.3,-.3]],[[-.1,.6,.2],[-.4,.45,.4],[-.58,.15,.4],[-.6,-.2,.3],[-.5,-.5,.1]]],A=[];
+paths.forEach((p,i)=>{const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p.map(a=>sh(V(...a),.66))),40,.04,8),new THREE.MeshStandardMaterial({color:0x22c55e,roughness:.4,emissive:0x22c55e,emissiveIntensity:.3}));m.userData.t=i+1;H.add(m);A[i+1]=m});
+paint=()=>{A.forEach((m,t)=>{if(!m)return;const c=new THREE.Color().setHSL((1-P[t])*.333,.85,.5);m.material.color=c;m.material.emissive=c;m.material.emissiveIntensity=sel==t?1:.25;m.scale.setScalar(sel==t?1.5:1)});heart.material.emissiveIntensity=sel==0?.18:0};
+const rs=()=>{piv.rotation.set(.1,-.3,0);C.position.z=3.4};rs();$('rs').onclick=rs;
+const fit2=()=>{const w=el.clientWidth,h=el.clientHeight;R.setSize(w,h,false);C.aspect=w/h;C.updateProjectionMatrix()};new ResizeObserver(fit2).observe(el);fit2();
+let dn=null,mv=0;const ray=new THREE.Raycaster();
+el.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY};mv=0;el.setPointerCapture(e.pointerId);el.style.cursor='grabbing'});
+el.addEventListener('pointermove',e=>{if(!dn)return;const dx=e.clientX-dn.x,dy=e.clientY-dn.y;mv+=Math.abs(dx)+Math.abs(dy);piv.rotation.y+=dx*.01;piv.rotation.x=cl(piv.rotation.x+dy*.01,-1.4,1.4);dn={x:e.clientX,y:e.clientY}});
+el.addEventListener('pointerup',e=>{el.style.cursor='grab';if(dn&&mv<6){const b=el.getBoundingClientRect();ray.setFromCamera({x:(e.clientX-b.left)/b.width*2-1,y:-((e.clientY-b.top)/b.height)*2+1},C);const h=ray.intersectObjects([heart,...A.filter(Boolean)])[0];if(h)pick(h.object.userData.t)}dn=null});
+el.addEventListener('wheel',e=>{e.preventDefault();C.position.z=cl(C.position.z+e.deltaY*.003,1.6,7)},{passive:false});
+let pd=0;el.addEventListener('touchmove',e=>{if(e.touches.length==2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pd)C.position.z=cl(C.position.z-(d-pd)*.01,1.6,7);pd=d}},{passive:true});el.addEventListener('touchend',()=>pd=0);
+(function loop(t){H.scale.setScalar(1+.02*Math.sin(t/230));R.render(S,C);requestAnimationFrame(loop)})(0)
+}catch(e){$('cv').innerHTML='<p class="hint" style="padding:1rem">3D view needs WebGL, which this browser has disabled. The prediction dashboard still works.</p>'}
+const d0=synth(303);load(d0,'Demo cohort (synthetic)','The built-in cohort is simulated so the app works offline. For real results, load the Z-Alizadeh Sani CSV: it retrains all four models in your browser.');
+</script></body></html>
